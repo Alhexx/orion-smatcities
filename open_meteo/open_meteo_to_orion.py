@@ -5,15 +5,14 @@ import os
 import time
 
 # --- Configurações (Melhor usar variáveis de ambiente no Docker) ---
-ORION_HOST = os.getenv("ORION_HOST", "http://localhost:1026") # Padrão para rodar no terminal
+ORION_HOST = os.getenv("ORION_HOST", "http://localhost:1026")
 ORION_URL = f"{ORION_HOST}/v2/entities"
 
 CITY_NAME = os.getenv("CITY_NAME", "Natal")
 LAT = float(os.getenv("LATITUDE", "-5.795"))
 LON = float(os.getenv("LONGITUDE", "-35.195"))
 
-# Use um intervalo menor para testes rápidos, e depois volte para 300 (5 min)
-REFRESH_INTERVAL_SECONDS = int(os.getenv("REFRESH_INTERVAL_SECONDS", 30)) # 1 minuto para testes
+REFRESH_INTERVAL_SECONDS = int(os.getenv("REFRESH_INTERVAL_SECONDS", 30))
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -26,14 +25,11 @@ ENTITY_TYPE = "WeatherObserved"
 
 # --- Funções ---
 def get_weather():
-    """
-    Coleta dados atuais de temperatura, umidade e código do tempo da Open-Meteo API.
-    Retorna um dicionário com os dados ou None em caso de erro.
-    """
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={LAT}&longitude={LON}"
-        f"&current=temperature_2m,relative_humidity_2m,weather_code"
+        f"&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_120m"
+        f"&wind_speed_unit=ms"
         f"&timezone=America%2FSao_Paulo"
     )
 
@@ -54,18 +50,12 @@ def get_weather():
         return None
 
 def send_to_orion(weather_data):
-    """
-    Formata os dados do clima e os envia para o Orion Context Broker.
-    Tenta atualizar a entidade (PATCH); se não existir, tenta criar (POST).
-    """
     if weather_data is None:
         print("Nenhum dado de clima para enviar.")
         return
 
     current_time_utc = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
 
-    # Payload para os atributos a serem atualizados/criados.
-    # Note que 'id' e 'type' não são incluídos no payload de PATCH para atributos.
     entity_attributes_payload = {
         "temperature": {
             "value": weather_data["temperature_2m"],
@@ -85,6 +75,13 @@ def send_to_orion(weather_data):
             "value": weather_data["weather_code"],
             "type": "Number"
         },
+        "windSpeed120": {
+            "value": weather_data["wind_speed_120m"],
+            "type": "Number",
+            "metadata": {
+                "unit": { "value": "m/s", "type": "Text" }
+            }
+        },
         "location": {
             "type": "geo:point",
             "value": f"{LAT},{LON}"
@@ -95,21 +92,19 @@ def send_to_orion(weather_data):
         }
     }
 
-    # 1. Tenta atualizar os atributos da entidade (PATCH)
     entity_update_url = f"{ORION_HOST}/v2/entities/{ENTITY_ID}/attrs"
     try:
         patch_response = requests.patch(entity_update_url, headers=HEADERS, data=json.dumps(entity_attributes_payload), timeout=5)
-        patch_response.raise_for_status() # Lança exceção para 4xx/5xx
+        patch_response.raise_for_status()
         print(f"[{current_time_utc}] Entidade '{ENTITY_ID}' atualizada com sucesso via PATCH. Status: {patch_response.status_code}")
-        return # Sucesso na atualização, não precisa fazer mais nada
+        return
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 404: # Entidade não encontrada, precisa criar
+        if e.response.status_code == 404:
             print(f"[{current_time_utc}] Entidade '{ENTITY_ID}' não encontrada. Tentando criar com POST.")
-            # Se a entidade não existe, prepara o payload completo para POST
             full_entity_payload = {
                 "id": ENTITY_ID,
                 "type": ENTITY_TYPE,
-                **entity_attributes_payload # Desempacota os atributos existentes
+                **entity_attributes_payload
             }
             try:
                 post_response = requests.post(ORION_URL, headers=HEADERS, data=json.dumps(full_entity_payload), timeout=5)
@@ -117,12 +112,11 @@ def send_to_orion(weather_data):
                 print(f"[{current_time_utc}] Entidade '{ENTITY_ID}' criada com sucesso via POST. Status: {post_response.status_code}")
             except requests.exceptions.RequestException as post_e:
                 print(f"[{current_time_utc}] Erro ao criar entidade '{ENTITY_ID}' via POST: {post_e}")
-        else: # Outro erro HTTP durante o PATCH
+        else:
             print(f"[{current_time_utc}] Erro HTTP inesperado durante PATCH (status {e.response.status_code}): {e.response.text}")
-    except requests.exceptions.RequestException as e: # Erros de conexão para PATCH
+    except requests.exceptions.RequestException as e:
         print(f"[{current_time_utc}] Erro de conexão ao enviar PATCH para Orion: {e}")
 
-# --- Loop principal ---
 if __name__ == "__main__":
     print(f"Adaptador Open-Meteo iniciado para '{CITY_NAME}' ({LAT}, {LON}).")
     print(f"Enviando dados para Orion em '{ORION_HOST}' com serviço '{HEADERS['Fiware-Service']}' a cada {REFRESH_INTERVAL_SECONDS} segundos.")

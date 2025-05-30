@@ -1,0 +1,182 @@
+{
+  "id": null,
+  "title": "Open-Meteo Multitenant - Completo com Vento",
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 37,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "title": "Temperatura (\u00b0C)",
+      "type": "timeseries",
+      "datasource": "CrateDB",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT time_index AS \"time\", temperature AS \"Temperatura (\u00b0C)\"\n                    FROM mtopenmeteo_service.etweatherobserved\n                    WHERE $__timeFilter(time_index)\n                    ORDER BY time_index ASC",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineColor": "red"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "title": "Umidade (%)",
+      "type": "timeseries",
+      "datasource": "CrateDB",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT time_index AS \"time\", humidity AS \"Umidade (%)\"\n                    FROM mtopenmeteo_service.etweatherobserved\n                    WHERE $__timeFilter(time_index)\n                    ORDER BY time_index ASC",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineColor": "blue"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "title": "C\u00f3digo do Tempo",
+      "type": "timeseries",
+      "datasource": "CrateDB",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT time_index AS \"time\", weatherCode AS \"C\u00f3digo do Tempo\"\n                    FROM mtopenmeteo_service.etweatherobserved\n                    WHERE $__timeFilter(time_index)\n                    ORDER BY time_index ASC",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineColor": "green"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      }
+    },
+    {
+      "title": "Velocidade do Vento (m/s)",
+      "type": "timeseries",
+      "datasource": "CrateDB",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT time_index AS \"time\", windSpeed120 AS \"Velocidade do Vento (m/s)\"\n                    FROM mtopenmeteo_service.etweatherobserved\n                    WHERE $__timeFilter(time_index)\n                    ORDER BY time_index ASC",
+          "refId": "D"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocity",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineColor": "purple"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      }
+    },
+    {
+      "title": "Condi\u00e7\u00f5es Atuais (Gauge)",
+      "type": "gauge",
+      "datasource": "CrateDB",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT\n                      MAX(temperature) AS temperature,\n                      MAX(humidity) AS humidity,\n                      MAX(weatherCode) AS weatherCode,\n                      MAX(windSpeed120) AS windSpeed120\n                    FROM mtopenmeteo_service.etweatherobserved\n                    WHERE $__timeFilter(time_index)",
+          "refId": "E"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 5
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 15
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      }
+    }
+  ]
+}

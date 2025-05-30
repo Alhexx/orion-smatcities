@@ -23,7 +23,7 @@ curl -iX POST "$ORION_HOST/v2/subscriptions" \
       "http": {
         "url": "http://quantumleap:8668/v2/notify" 
       },
-      "attrs": ["temperature", "humidity", "weatherCode", "location", "dateObserved"],
+      "attrs": ["temperature", "humidity", "weatherCode", "windSpeed120", "location", "dateObserved"],
       "metadata": ["dateCreated", "dateModified"]
     },
     "throttling": 5
