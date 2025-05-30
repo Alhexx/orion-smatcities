@@ -64,4 +64,10 @@ O Grafana é provisionado automaticamente com:
 - Velocidade do vento a 120 metros (pensando em armazenar dados para analise de viabilidade para aerogeradores on-shore)
 - Painel tipo **gauge** com condições atuais
 
+![Texto Alternativo](./public/image.png)
+
 Acesse em: [http://localhost:3000](http://localhost:3000)
+
+Usuario: admin
+
+Senha: admin
