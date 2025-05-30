@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:4.4
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - fiware
+
+  orion:
+    image: telefonicaiot/fiware-orion
+    container_name: orion
+    depends_on:
+      - mongo
+    ports:
+      - "1026:1026"
+    command: -dbURI mongodb://mongo:27017 -logLevel DEBUG
+    networks:
+      - fiware
+
+  quantumleap:
+    image: orchestracities/quantumleap
+    container_name: quantumleap
+    depends_on:
+      - crate
+    ports:
+      - "8668:8668"
+    environment:
+      - QL_DB_URI=crate://crate:4200
+      - LOGLEVEL=DEBUG
+    networks:
+      - fiware
+
+  crate:
+    image: crate:4.5.1
+    container_name: crate
+    command: crate -Cnetwork.host=0.0.0.0 -Ccluster.name=crate-cluster -Cnode.name=crate -Chttp.cors.enabled=true -Chttp.cors.allow-origin="*" -Cdiscovery.type=single-node
+    ports:
+      - "4200:4200"
+    networks:
+      - fiware
+    healthcheck: # <-- ADICIONE ESTE BLOCO
+      test: ["CMD-SHELL", "curl -f http://localhost:4200"] # Verifica se a porta HTTP está respondendo
+      interval: 10s # Verifica a cada 10 segundos
+      timeout: 5s # Tempo máximo para a verificação
+      retries: 5 # Número de tentativas antes de considerar "unhealthy"
+      start_period: 20s # Tempo para o contêiner inicializar antes de começar as verificações de saúde
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - crate
+    networks:
+      - fiware
+
+  openmeteo_adapter:
+    build: ./open_meteo # Indica ao Docker Compose para construir a imagem a partir desta pasta
+    container_name: openmeteo_adapter
+    environment:
+      - ORION_HOST=http://orion:1026 # O Orion está na rede fiware como 'orion'
+      - LATITUDE=-5.795 # Latitude de Natal, RN
+      - LONGITUDE=-35.195 # Longitude de Natal, RN
+      - CITY_NAME=Natal # Nome da cidade para logs
+      - REFRESH_INTERVAL_SECONDS=60 # Intervalo para testes (1 minuto)
+      - FIWARE_SERVICE=openmeteo_service # Serviço FIWARE para esta aplicação
+      - FIWARE_SERVICE_PATH=/weather # Caminho de serviço FIWARE
+      - ENTITY_ID=WeatherObserved:Natal # ID único da entidade
+      - PYTHONUNBUFFERED=1 # <--- ADICIONE ESTA LINHA AQUI
+    depends_on:
+      - orion # O adaptador precisa que o Orion esteja rodando
+    networks:
+      - fiware
+
+volumes:
+  mongo-data:
+  grafana-storage:
+
+networks:
+  fiware:
